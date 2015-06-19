@@ -1,10 +1,8 @@
 package me.dogeshiba.chat.streams.stages
 
-import akka.stream.stage.{SyncDirective, Directive, Context, PushPullStage}
+import akka.stream.stage.{Context, PushPullStage, SyncDirective}
 import akka.util.ByteString
 import me.dogeshiba.chat.protocols.VariableLengthBinaryProtocol
-import me.dogeshiba.chat.protocols.leet.LeetBinaryProtocol
-import me.dogeshiba.chat.protocols.leet.Messages.LeetProtocolMessage
 
 class VariableLengthBinaryProtocolStage[Message,Error](protocol : VariableLengthBinaryProtocol[Message,Error]) extends PushPullStage[ByteString, Message] {
   private var buffer = ByteString.empty

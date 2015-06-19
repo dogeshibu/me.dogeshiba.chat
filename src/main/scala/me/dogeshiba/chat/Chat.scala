@@ -1,13 +1,10 @@
 package me.dogeshiba.chat
 
-import java.net.InetSocketAddress
-
-import akka.actor.{Props, ActorSystem}
+import me.dogeshiba.chat.common._
 import me.dogeshiba.chat.protocols.leet.Errors.LeetProtocolError
 import me.dogeshiba.chat.protocols.leet.LeetBinaryProtocol
 import me.dogeshiba.chat.protocols.leet.Messages.LeetProtocolMessage
-import me.dogeshiba.chat.streams.{StreamServer, StreamClient}
-import me.dogeshiba.chat.common._
+import me.dogeshiba.chat.streams.{StreamClient, StreamServer}
 
 import scala.io.StdIn
 import scala.util.Try

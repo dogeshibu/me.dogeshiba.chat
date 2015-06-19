@@ -1,13 +1,12 @@
 package me.dogeshiba.chat.protocols.leet
 
-import me.dogeshiba.chat.protocols.{VariableLengthBinaryProtocol, Protocol}
+import me.dogeshiba.chat.protocols.VariableLengthBinaryProtocol
 import me.dogeshiba.chat.protocols.leet.Errors.{InvalidMessage, LeetProtocolError}
 import me.dogeshiba.chat.protocols.leet.Messages.LeetProtocolMessage
 import scodec.Attempt.Successful
-import scodec.{DecodeResult, Attempt, Codec}
+import scodec.DecodeResult
 import scodec.bits.BitVector
 import scodec.codecs._
-import scodec.codecs.implicits._
 
 object LeetBinaryProtocol extends VariableLengthBinaryProtocol[LeetProtocolMessage, LeetProtocolError] {
 

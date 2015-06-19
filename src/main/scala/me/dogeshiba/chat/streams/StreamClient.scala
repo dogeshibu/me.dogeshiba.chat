@@ -1,18 +1,13 @@
 package me.dogeshiba.chat.streams
 
-import java.net.InetSocketAddress
-
-import akka.actor.{ActorRef, Props}
-import akka.stream.{OverflowStrategy, ActorFlowMaterializer, io}
-import akka.stream.scaladsl.{Sink, Source, Flow, Tcp}
-import akka.stream.scaladsl.Tcp.OutgoingConnection
+import akka.actor.ActorRef
+import akka.stream.scaladsl.{Sink, Source, Tcp}
+import akka.stream.{ActorFlowMaterializer, OverflowStrategy}
 import akka.util.ByteString
 import me.dogeshiba.chat.Client
-import me.dogeshiba.chat.protocols.leet.Messages.LeetProtocolMessage
-import me.dogeshiba.chat.system.ActorSystemOwner
 import me.dogeshiba.chat.protocols.VariableLengthBinaryProtocol
 import me.dogeshiba.chat.streams.stages.VariableLengthBinaryProtocolStage
-import org.reactivestreams.{Subscriber, Publisher}
+import me.dogeshiba.chat.system.ActorSystemOwner
 
 class StreamClient[Message,Error](variableLengthBinaryProtocol: VariableLengthBinaryProtocol[Message,Error], textToMsg : String => Message, onRecieve : Message => Unit) extends Client with ActorSystemOwner {
 

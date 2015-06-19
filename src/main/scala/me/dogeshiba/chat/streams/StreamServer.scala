@@ -1,17 +1,12 @@
 package me.dogeshiba.chat.streams
 
-import java.net.InetSocketAddress
-
 import akka.stream.ActorFlowMaterializer
 import akka.stream.scaladsl.{Flow, Tcp}
-import akka.stream.stage._
 import akka.util.ByteString
 import me.dogeshiba.chat.Server
-import me.dogeshiba.chat.system.ActorSystemOwner
 import me.dogeshiba.chat.protocols.VariableLengthBinaryProtocol
-import me.dogeshiba.chat.protocols.leet.LeetBinaryProtocol
-import me.dogeshiba.chat.protocols.leet.Messages.LeetProtocolMessage
 import me.dogeshiba.chat.streams.stages.VariableLengthBinaryProtocolStage
+import me.dogeshiba.chat.system.ActorSystemOwner
 
 class StreamServer[Message, Error](protocol : VariableLengthBinaryProtocol[Message,Error], echoFunction : Message => Message) extends Server with ActorSystemOwner {
 
