@@ -1,8 +1,8 @@
 package me.dogeshiba.chat.actors.topkek
 
+import akka.actor.{Actor, ActorRef}
 import me.dogeshiba.chat.actors.topkek.Messages.UserDisconnected
 import me.dogeshiba.chat.protocols.topkek.Messages._
-import akka.actor.{ActorRef, Actor}
 
 class MessageBroadcaster extends Actor {
 
@@ -126,7 +126,6 @@ class MessageBroadcaster extends Actor {
     case UnlockAccount(id) =>
       update(user.copy(passwordHash = None))
       sender() ! ServerOk(id)
-
   }
 
   private def userDisconnectedActions: Receive = {
