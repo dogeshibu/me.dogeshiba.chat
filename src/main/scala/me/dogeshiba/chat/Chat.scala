@@ -10,15 +10,9 @@ import me.dogeshiba.chat.streams.{StreamServer, StreamClient}
 import me.dogeshiba.chat.common._
 
 import scala.io.StdIn
+import scala.util.Try
 
 object Chat extends App {
-
-  def userInputToMessage(string: String) = LeetProtocolMessage(100, Vector("wat",string))
-
-  def serverResponseToOutput(leetProtocolMessage: LeetProtocolMessage) = {
-    println(s"Server echo: $leetProtocolMessage")
-    print("> ")
-  }
 
   args match {
     case Array("--client") =>
@@ -38,4 +32,19 @@ object Chat extends App {
       }
 
   }
+
+  def userInputToMessage(string: String) = LeetProtocolMessage(100,1, Vector("wat",string))
+
+  def serverResponseToOutput(leetProtocolMessage: LeetProtocolMessage) = {
+    println(s"Server echo: $leetProtocolMessage")
+    print("> ")
+  }
+
+  object IsClient {
+    def unapply(args : Array[String]) : Option[Option[(String,Int)]] = args match {
+      case Array("--client") => Some(None)
+      case Array("--client",address,port) => Try(port.toInt).toOption.map(port => Some(address -> port))
+    }
+  }
+  
 }

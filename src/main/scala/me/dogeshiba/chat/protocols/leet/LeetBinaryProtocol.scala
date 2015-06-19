@@ -11,16 +11,16 @@ import scodec.codecs.implicits._
 
 object LeetBinaryProtocol extends VariableLengthBinaryProtocol[LeetProtocolMessage, LeetProtocolError] {
 
-  private val protocol = variableSizeBytes(uint16, uint16 ~ vectorOfN(uint16, variableSizeBytes(uint16, utf8)))
+  private val protocol = variableSizeBytes(uint16, uint16 ~ uint16 ~ vectorOfN(uint16, variableSizeBytes(uint16, utf8)))
 
   override def decode(bytes: Array[Byte]): Either[LeetProtocolMessage, LeetProtocolError] =
     protocol.decode(BitVector.view(bytes)) match {
-      case Successful(DecodeResult(code ~ strings,_)) => Left(LeetProtocolMessage(code, strings))
+      case Successful(DecodeResult(code ~ id ~ strings,_)) => Left(LeetProtocolMessage(code, id, strings))
       case _ => Right(InvalidMessage)
     }
 
   override def encode(message: LeetProtocolMessage): Either[Array[Byte], LeetProtocolError] =
-    protocol.encode(message.code -> message.arguments) match {
+    protocol.encode((message.code -> message.id ) -> message.arguments) match {
       case Successful(result) => Left(result.toByteArray)
       case _ => Right(InvalidMessage)
     }
