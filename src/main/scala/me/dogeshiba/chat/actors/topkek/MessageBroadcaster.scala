@@ -2,30 +2,25 @@ package me.dogeshiba.chat.actors.topkek
 
 import akka.actor.{Actor, ActorRef}
 import me.dogeshiba.chat.actors.topkek.Messages.UserDisconnected
+import me.dogeshiba.chat.persistance.topkek.Persistance._
 import me.dogeshiba.chat.protocols.topkek.Messages._
 
 class MessageBroadcaster extends Actor {
 
-  private sealed case class User(nick : String, passwordHash : Option[String], claim : Claim, actor : Option[ActorRef])
+  private[this] var users = Map[String,User]()
+  private[this] var actors = Map[ActorRef,User]()
 
-  private sealed trait Claim
-  private object Admin extends Claim
-  private object Authorized extends Claim
+  private[this] var channels = Map[String,Set[String]]()
 
-  private var users = Map[String,User]()
-  private var actors = Map[ActorRef,User]()
+  private[this] def user = actors(sender())
 
-  private var channels = Map[String,Set[String]]()
-
-  private def user = actors(sender())
-
-  private def update(user: User) = {
+  private[this] def update(user: User) = {
     users += user.nick -> user
     if(user.actor.isDefined)
       actors += user.actor.get -> user
   }
 
-  private def adminActions: Receive = {
+  private[this] def adminActions: Receive = {
 
     case msg : TopKekMessage with AdminMessage if user.claim != Admin =>
       sender() ! Unauthorized(msg.id)
@@ -38,6 +33,7 @@ class MessageBroadcaster extends Actor {
       sender() ! ServerOk(id)
 
     case DeleteChannel(id, channel) if channels.contains(channel) =>
+      channels(channel).map(users).foreach(_.actor.get ! Dropped(id, channel))
       channels -= channel
       sender() ! ServerOk(id)
 
@@ -56,7 +52,7 @@ class MessageBroadcaster extends Actor {
       sender() ! UserNotFound(msg.id)
   }
 
-  private def messagingActions: Receive = {
+  private[this] def messagingActions: Receive = {
     case SendPrivateMessage(id, nick, text) if users.contains(nick) && users(nick).actor.isDefined =>
       val senderNick = actors(sender()).nick
       users(nick).actor.get ! PrivateMessage(id, senderNick, text)
@@ -74,18 +70,18 @@ class MessageBroadcaster extends Actor {
       sender() ! ChannelNotFound(id)
   }
 
-  private def enumerationActions: Receive = {
+  private[this] def enumerationActions: Receive = {
     case EnumerateUsers(id, channel) if channels.contains(channel) =>
-      sender() ! UserList(id, channels(channel).toArray)
+      sender() ! UserList(id, channels(channel).toVector)
 
     case EnumerateUsers(id, _) =>
       sender() ! ChannelNotFound(id)
 
     case EnumerateChannels(id) =>
-      sender() ! ChannelList(id, channels.keys.toArray)
+      sender() ! ChannelList(id, channels.keys.toVector)
   }
 
-  private def channelsActions: Receive = {
+  private[this] def channelsActions: Receive = {
     case Join(id, channel) if channels.contains(channel) =>
       channels += channel -> (channels(channel) + user.nick)
       sender() ! ServerOk(id)
@@ -99,12 +95,16 @@ class MessageBroadcaster extends Actor {
       sender() ! ChannelNotFound(id)
   }
 
-  private def authorizationActions: Receive = {
+  private[this] def authorizationActions: Receive = {
 
     case Authorization(id, nick, password)
       if users.contains(nick) && users(nick).passwordHash.contains(password) && users(nick).actor.isEmpty =>
       update(users(nick).copy(actor = Some(sender())))
       sender() ! ServerOk(id)
+
+    case Authorization(id, nick, password)
+      if users.contains(nick) && !users(nick).passwordHash.contains(password) =>
+      sender() ! InvalidPassword(id)
 
     case Authorization(id, _, _) =>
       sender() ! Unauthorized(id)
@@ -128,7 +128,7 @@ class MessageBroadcaster extends Actor {
       sender() ! ServerOk(id)
   }
 
-  private def userDisconnectedActions: Receive = {
+  private[this] def userDisconnectedActions: Receive = {
     case UserDisconnected if user.passwordHash.isEmpty =>
       users -= user.nick
       channels = channels.mapValues(_ - user.nick)
