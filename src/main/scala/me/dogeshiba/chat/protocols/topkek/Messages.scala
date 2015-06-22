@@ -7,25 +7,26 @@ object Messages {
 
   sealed trait Request
   sealed trait Response
-  sealed trait ProtocolErrorMessage extends Response
+  sealed trait ProtocolErrorMessage extends Response with TopKekMessage
   sealed trait AdminMessage extends Request
+  sealed trait RequireAuthorization
 
   sealed case class ClientHello(id : Int) extends TopKekMessage with Request
   sealed case class SetNickname(id : Int, nick : String) extends TopKekMessage with Request
   sealed case class Authorization(id : Int, nick : String, password : String) extends TopKekMessage with Request
-  sealed case class LockAccount(id : Int, password : String) extends TopKekMessage with Request
-  sealed case class EnumerateChannels(id : Int) extends TopKekMessage with Request
-  sealed case class Join(id : Int, channel : String) extends TopKekMessage with Request
-  sealed case class EnumerateUsers(id : Int, channel : String) extends TopKekMessage with Request
-  sealed case class SendMessage(id : Int, channel : String, text : String) extends TopKekMessage with Request
-  sealed case class SendPrivateMessage(id : Int, nick : String, text : String) extends TopKekMessage with Request
-  sealed case class Unjoin(id : Int, channel : String) extends TopKekMessage with Request
-  sealed case class UnlockAccount(id : Int) extends TopKekMessage with Request
+  sealed case class LockAccount(id : Int, password : String) extends TopKekMessage with Request with RequireAuthorization
+  sealed case class EnumerateChannels(id : Int) extends TopKekMessage with Request with RequireAuthorization
+  sealed case class Join(id : Int, channel : String) extends TopKekMessage with Request with RequireAuthorization
+  sealed case class EnumerateUsers(id : Int, channel : String) extends TopKekMessage with Request with RequireAuthorization
+  sealed case class SendMessage(id : Int, channel : String, text : String) extends TopKekMessage with Request with RequireAuthorization
+  sealed case class SendPrivateMessage(id : Int, nick : String, text : String) extends TopKekMessage with Request with RequireAuthorization
+  sealed case class Unjoin(id : Int, channel : String) extends TopKekMessage with Request with RequireAuthorization
+  sealed case class UnlockAccount(id : Int) extends TopKekMessage with Request with RequireAuthorization
 
-  sealed case class CreateChannel(id : Int, channel : String) extends TopKekMessage with AdminMessage
-  sealed case class DeleteChannel(id : Int, channel : String) extends TopKekMessage with AdminMessage
-  sealed case class ElevatePrivileges(id : Int, nick : String) extends TopKekMessage with AdminMessage
-  sealed case class DropPrivileges(id : Int, nick : String) extends TopKekMessage with AdminMessage
+  sealed case class CreateChannel(id : Int, channel : String) extends TopKekMessage with AdminMessage with RequireAuthorization
+  sealed case class DeleteChannel(id : Int, channel : String) extends TopKekMessage with AdminMessage with RequireAuthorization
+  sealed case class ElevatePrivileges(id : Int, nick : String) extends TopKekMessage with AdminMessage with RequireAuthorization
+  sealed case class DropPrivileges(id : Int, nick : String) extends TopKekMessage with AdminMessage with RequireAuthorization
 
   sealed case class ServerHello(id : Int) extends TopKekMessage with Response
   sealed case class ServerOk(id : Int) extends TopKekMessage with Response
@@ -42,7 +43,7 @@ object Messages {
   sealed case class ChannelNotUnique(id : Int) extends TopKekMessage with Response
   sealed case class PrivateMessage(id : Int, nick : String, text : String) extends TopKekMessage with Response
 
-  sealed case class BadRequest(id : Int) extends TopKekMessage with ProtocolErrorMessage
-  sealed case class UnsupportedOperation(id : Int) extends TopKekMessage with ProtocolErrorMessage
-  sealed case class ParameterRequired(id : Int) extends TopKekMessage with ProtocolErrorMessage
+  sealed case class BadRequest(id : Int) extends ProtocolErrorMessage
+  sealed case class UnsupportedOperation(id : Int) extends ProtocolErrorMessage
+  sealed case class ParameterRequired(id : Int) extends ProtocolErrorMessage
 }

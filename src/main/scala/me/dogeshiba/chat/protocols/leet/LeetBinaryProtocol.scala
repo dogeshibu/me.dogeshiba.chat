@@ -27,4 +27,6 @@ object LeetBinaryProtocol extends VariableLengthBinaryProtocol[LeetProtocolMessa
   override def lengthInBytes(bytes: Array[Byte]): Option[Int] =
     uint16.decode(BitVector.view(bytes)).toOption.map(_.value + 2)
 
+  override def encodeError(error: LeetProtocolError): Array[Byte] =
+    encode(LeetProtocolMessage(300,0,Vector.empty)).left.get
 }

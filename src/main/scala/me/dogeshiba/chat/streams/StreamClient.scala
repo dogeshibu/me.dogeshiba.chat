@@ -9,9 +9,10 @@ import me.dogeshiba.chat.protocols.VariableLengthBinaryProtocol
 import me.dogeshiba.chat.streams.stages.VariableLengthBinaryProtocolStage
 import me.dogeshiba.chat.system.ActorSystemOwner
 
-class StreamClient[Message,Error](variableLengthBinaryProtocol: VariableLengthBinaryProtocol[Message,Error], textToMsg : String => Message, onRecieve : Message => Unit) extends Client with ActorSystemOwner {
+class StreamClient[Message,Error](variableLengthBinaryProtocol: VariableLengthBinaryProtocol[Message,Error],
+                                  onRecieve : Either[Message,Error] => Unit) extends Client[Message] with ActorSystemOwner {
 
-  var actor : ActorRef = null
+  var subscriber : Option[ActorRef] = None
 
   override def start(address: String, port : Int): Unit = {
 
@@ -19,19 +20,24 @@ class StreamClient[Message,Error](variableLengthBinaryProtocol: VariableLengthBi
 
     val connection = Tcp().outgoingConnection(address,port)
 
-    actor = Source
-      .actorRef[String](1, OverflowStrategy.dropBuffer)
-      //TODO parsing error handler
-      .map(x => ByteString(variableLengthBinaryProtocol.encode(textToMsg(x)).left.get))
+    subscriber = Some(Source
+      .actorRef[Message](1, OverflowStrategy.dropHead)
+      .map(x => variableLengthBinaryProtocol.encode(x))
+      .map {
+        case Left(msg) => ByteString(msg)
+        case Right(error) => ByteString(variableLengthBinaryProtocol.encodeError(error))
+      }
       .via(connection)
       .transform(() =>
         new VariableLengthBinaryProtocolStage(variableLengthBinaryProtocol))
       .to(Sink.foreach(onRecieve))
-      .run()
+      .run())
 
   }
 
-  override def send(msg: String): Unit = {
-    actor ! msg
+  override def send(msg: Message): Unit = {
+    subscriber.foreach { actor =>
+      actor ! msg
+    }
   }
 }

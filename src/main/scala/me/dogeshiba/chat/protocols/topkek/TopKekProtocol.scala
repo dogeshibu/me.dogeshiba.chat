@@ -79,4 +79,10 @@ object TopKekProtocol extends Protocol[LeetProtocolMessage,TopKekMessage, Protoc
     case UnsupportedOperation(id) => Left(LeetProtocolMessage(301,id,Vector()))
     case ParameterRequired(id) => Left(LeetProtocolMessage(302,id,Vector()))
   }
+
+  override def encodeError(error: ProtocolErrorMessage): LeetProtocolMessage = error match {
+    case BadRequest(id) => LeetProtocolMessage(300,id,Vector())
+    case UnsupportedOperation(id) => LeetProtocolMessage(301,id,Vector())
+    case ParameterRequired(id) => LeetProtocolMessage(302,id,Vector())
+  }
 }

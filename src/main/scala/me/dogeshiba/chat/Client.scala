@@ -1,6 +1,6 @@
 package me.dogeshiba.chat
 
-trait Client extends AutoCloseable{
+trait Client[Message] extends AutoCloseable{
   def start(address : String, port : Int)
-  def send(msg : String)
+  def send(msg : Message)
 }

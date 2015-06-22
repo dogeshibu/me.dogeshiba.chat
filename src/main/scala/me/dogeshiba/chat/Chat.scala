@@ -1,9 +1,10 @@
 package me.dogeshiba.chat
 
+import me.dogeshiba.chat.behaviour.topkek.MessageBroadcaster
 import me.dogeshiba.chat.common._
-import me.dogeshiba.chat.protocols.leet.Errors.LeetProtocolError
 import me.dogeshiba.chat.protocols.leet.LeetBinaryProtocol
-import me.dogeshiba.chat.protocols.leet.Messages.LeetProtocolMessage
+import me.dogeshiba.chat.protocols.topkek.Messages._
+import me.dogeshiba.chat.protocols.topkek.TopKekProtocol
 import me.dogeshiba.chat.streams.{StreamClient, StreamServer}
 
 import scala.io.StdIn
@@ -11,28 +12,39 @@ import scala.util.Try
 
 object Chat extends App {
 
+  val broadcaster = new MessageBroadcaster(Vector("all"))
+
+  val protocol = LeetBinaryProtocol.compose(msg => BadRequest(-1).asInstanceOf[ProtocolErrorMessage])(TopKekProtocol)
+
   args match {
     case Array("--client") =>
-      using(new StreamClient(LeetBinaryProtocol,userInputToMessage,serverResponseToOutput)) { client =>
+      using(new StreamClient(protocol,serverResponseToOutput)) { client =>
         client.start("localhost", 4568)
-        print("> ")
+        var id = 1
+        client.send(ClientHello(id))
+        id += 1
+        client.send(SetNickname(id, "admin"))
         var text = StdIn.readLine()
         while (text != ":exit") {
-          client.send(text)
+          id += 1
+          if(text == ":join") {
+            client.send(Join(id,"all"))
+          } else {
+            client.send(SendMessage(id,"all",text))
+          }
           text = StdIn.readLine()
         }
       }
     case Array("--server") =>
-      using(new StreamServer[LeetProtocolMessage, LeetProtocolError](LeetBinaryProtocol, m =>{ println(m); m.copy(code = 200) })) { server =>
+      using(new StreamServer(1, protocol, broadcaster)) { server =>
         server.start("localhost",4568)
         StdIn.readLine()
       }
 
   }
 
-  def userInputToMessage(string: String) = LeetProtocolMessage(100,1, Vector("wat",string))
 
-  def serverResponseToOutput(leetProtocolMessage: LeetProtocolMessage) = {
+  def serverResponseToOutput(leetProtocolMessage: Either[TopKekMessage,ProtocolErrorMessage]) = {
     println(s"Server echo: $leetProtocolMessage")
     print("> ")
   }
