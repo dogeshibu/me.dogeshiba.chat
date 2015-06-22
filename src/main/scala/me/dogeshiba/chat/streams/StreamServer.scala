@@ -2,6 +2,7 @@ package me.dogeshiba.chat.streams
 
 import java.net.InetSocketAddress
 
+import akka.actor.ActorRef
 import akka.stream.scaladsl._
 import akka.stream.{ActorFlowMaterializer, OverflowStrategy}
 import akka.util.ByteString
@@ -15,8 +16,20 @@ import org.reactivestreams.{Subscriber, Subscription}
 
 class StreamServer[Message, Error](parallelism : Int,
                                    protocol : VariableLengthBinaryProtocol[Message,Error],
-                                   behaviour: ChatBehaviour[Message, Error, InetSocketAddress, Subscriber[Message]])
+                                   factory: InetSocketAddress => ChatBehaviour[Message, Error, InetSocketAddress, Subscriber[Message]])
   extends Server with ActorSystemOwner {
+
+  private[this] class ActorSubscriber(actorRef: ActorRef) extends Subscriber[Message] {
+
+    override def onError(t: Throwable): Unit = {}
+
+    override def onSubscribe(s: Subscription): Unit = {}
+
+    override def onComplete(): Unit = {}
+
+    override def onNext(t: Message): Unit = actorRef ! t
+
+  }
 
   override def start(address : String, port : Int): Unit = {
     val binding = Tcp().bind(address, port)
@@ -28,11 +41,11 @@ class StreamServer[Message, Error](parallelism : Int,
 
       val fromOthers = Source.actorRef[Message](20, OverflowStrategy.dropTail)
 
-      val function = behaviour.receive(connection.remoteAddress)(_)
+      val behaviour = factory(connection.remoteAddress)
 
       val incoming = Flow[ByteString]
         .transform(() => new VariableLengthBinaryProtocolStage(protocol))
-        .map(function)
+        .map(behaviour.receive)
 
 
       val serializingFlow = Flow[Message]
@@ -56,17 +69,7 @@ class StreamServer[Message, Error](parallelism : Int,
 
       val subscriber = connection.handleWith(flow)
 
-      behaviour.register(connection.remoteAddress, new Subscriber[Message] {
-
-        override def onError(t: Throwable): Unit = {}
-
-        override def onSubscribe(s: Subscription): Unit = {}
-
-        override def onComplete(): Unit = {}
-
-        override def onNext(t: Message): Unit = subscriber ! t
-
-      })
+      behaviour.register(connection.remoteAddress, new ActorSubscriber(subscriber))
 
       println(s"Connected ${connection.remoteAddress}")
     }

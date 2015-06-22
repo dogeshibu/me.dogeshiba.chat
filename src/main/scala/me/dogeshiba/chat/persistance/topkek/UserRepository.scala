@@ -1,20 +1,37 @@
 package me.dogeshiba.chat.persistance.topkek
 
-import akka.actor.ActorRef
-import me.dogeshiba.chat.persistance.topkek.Persistance.User
+import java.net.InetSocketAddress
 
-import scala.concurrent.Future
+import me.dogeshiba.chat.persistance.topkek.Users.User
 
 trait UserRepository {
-  def +=(user : User) : Future[User]
-  def -=(user : User) : Future[User]
 
-  def contains(nick : String) : Future[Boolean]
-  def contains(actor : ActorRef) : Future[Boolean]
+  def +=(user: User): Unit
 
-  def all() : Future[Seq[User]]
-  def apply(nick : String) : Future[Option[User]]
-  def apply(actor : ActorRef) : Future[Option[User]]
+  def -=(user: User): Unit
 
-  def update(user: User) : Future[User]
+  def +=(channel: String): Unit
+
+  def -=(channel: String): Unit
+
+  def +=(pair: (String, User)): Unit
+
+  def -=(pair: (String, User)): Unit
+
+  def contains(address: InetSocketAddress): Boolean
+
+  def contains(nick: String): Boolean
+
+  def containsChannel(name: String): Boolean
+
+  def users(): Seq[User]
+
+  def channels(): Seq[String]
+
+  def users(channel: String): Seq[User]
+
+  def apply(nick: String): Option[User]
+
+  def apply(actor: InetSocketAddress): Option[User]
+
 }
