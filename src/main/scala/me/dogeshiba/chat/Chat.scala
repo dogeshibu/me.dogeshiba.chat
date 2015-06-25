@@ -1,6 +1,6 @@
 package me.dogeshiba.chat
 
-import me.dogeshiba.chat.behaviour.topkek.MessageBroadcaster
+import me.dogeshiba.chat.behaviour.topkek.TopKekChatBehaviour
 import me.dogeshiba.chat.common._
 import me.dogeshiba.chat.persistance.topkek.InMemoryUserRepository
 import me.dogeshiba.chat.protocols.leet.LeetBinaryProtocol
@@ -18,6 +18,7 @@ object Chat extends App {
   repository += "all"
 
   val protocol = LeetBinaryProtocol.compose(msg => BadRequest(-1).asInstanceOf[ProtocolErrorMessage])(TopKekProtocol)
+
 
   args match {
     case Array("--client") =>
@@ -39,7 +40,7 @@ object Chat extends App {
         }
       }
     case Array("--server") =>
-      using(new StreamServer(1, protocol, new MessageBroadcaster(repository)(_))) { server =>
+      using(new StreamServer(1, protocol, new TopKekChatBehaviour(repository)(_))) { server =>
         server.start("localhost",4568)
         StdIn.readLine()
       }

@@ -21,7 +21,7 @@ class StreamClient[Message,Error](variableLengthBinaryProtocol: VariableLengthBi
     val connection = Tcp().outgoingConnection(address,port)
 
     subscriber = Some(Source
-      .actorRef[Message](1, OverflowStrategy.dropHead)
+      .actorRef[Message](20, OverflowStrategy.dropTail)
       .map(x => variableLengthBinaryProtocol.encode(x))
       .map {
         case Left(msg) => ByteString(msg)

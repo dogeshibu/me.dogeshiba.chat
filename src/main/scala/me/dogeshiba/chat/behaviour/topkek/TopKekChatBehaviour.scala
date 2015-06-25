@@ -8,14 +8,16 @@ import me.dogeshiba.chat.persistance.topkek.Users._
 import me.dogeshiba.chat.protocols.topkek.Messages._
 import org.reactivestreams.Subscriber
 
-class MessageBroadcaster(repository: UserRepository)(private[this] var address: InetSocketAddress)
+class TopKekChatBehaviour(repository: UserRepository)(private[this] var address: InetSocketAddress)
   extends ChatBehaviour[TopKekMessage,ProtocolErrorMessage,InetSocketAddress, Subscriber[TopKekMessage]] {
 
   private[this] def currentUser = repository(address).get
 
-  repository += Anonymous(address, None)
+  repository += Anonymous(address)
 
-  private[this] type Receive = PartialFunction[TopKekMessage, TopKekMessage]
+  private[this] type Response = (TopKekMessage, Map[InetSocketAddress, Seq[TopKekMessage]])
+
+  private[this] type Receive = PartialFunction[TopKekMessage, Response]
 
   private[this] def currentNick = currentUser match {
     case user: Nicknamed => Some(user.nick)
@@ -30,6 +32,27 @@ class MessageBroadcaster(repository: UserRepository)(private[this] var address: 
       Unauthorized(id)
   }
 
+  private[this] def process(operation: Operation)(user: User): Option[User] = user -> operation match {
+    case (Anonymous(addr), SetNick(nick)) =>
+      Some(Authorized(nick, addr))
+    case (Anonymous(addr), Authorize(nick, password, Some(Locked(n, pwd, _)))) if n == nick && password == pwd =>
+      Some(Locked(nick, password, addr))
+    case (Anonymous(addr), Authorize(nick, password, Some(Admin(n, pwd, _)))) if n == nick && password == pwd =>
+      Some(Admin(nick, password, addr))
+    case (Authorized(nick, addr), Lock(password)) =>
+      Some(Locked(nick, password, addr))
+    case (Locked(nick, password, addr), Elevate) =>
+      Some(Admin(nick, password, addr))
+    case (Locked(nick, password, addr), Unlock) =>
+      Some(Authorized(nick, addr))
+    case (Admin(nick, password, addr), Drop) =>
+      Some(Locked(nick, password, addr))
+    case _ => None
+  }
+
+  private[this] implicit def messageToResponse(message: TopKekMessage): Response =
+    message -> Map.empty
+
   private[this] def adminActions: Receive = {
 
     case msg: TopKekMessage with AdminMessage if !currentUser.isInstanceOf[Admin] =>
@@ -43,9 +66,11 @@ class MessageBroadcaster(repository: UserRepository)(private[this] var address: 
       ServerOk(id)
 
     case DeleteChannel(id, channel) if repository.containsChannel(channel) =>
-      repository.users(channel).foreach(_.send(Dropped(id, channel)))
       repository -= channel
-      ServerOk(id)
+      ServerOk(id) -> repository
+        .users(channel)
+        .map(_.address -> Seq(Dropped(id, channel)))
+        .toMap
 
     case DeleteChannel(id, channel) =>
       ChannelNotFound(id)
@@ -63,12 +88,16 @@ class MessageBroadcaster(repository: UserRepository)(private[this] var address: 
 
   private[this] def messagingActions: Receive = {
     case SendPrivateMessage(id, nick, text) if repository.contains(nick) =>
-      repository(nick).foreach(_.send(PrivateMessage(id, currentNick.get, text)))
-      ServerOk(id)
+      ServerOk(id) -> repository(nick)
+        .toSeq
+        .map(_.address -> Seq(PrivateMessage(id, currentNick.get, text)))
+        .toMap
 
     case SendMessage(id, channel, text) if repository.containsChannel(channel) =>
-      repository.users(channel).foreach(_.send(Message(id, channel, currentNick.get, text)))
-      ServerOk(id)
+      ServerOk(id) -> repository
+        .users(channel)
+        .map(_.address -> Seq(Message(id, channel, currentNick.get, text)))
+        .toMap
 
     case SendPrivateMessage(id, nick, _) =>
       UserNotFound(id)
@@ -130,10 +159,6 @@ class MessageBroadcaster(repository: UserRepository)(private[this] var address: 
   }
 
   private[this] def blockUnathorized: Receive = {
-
-    case msg: TopKekMessage if currentUser.subscriber.isEmpty =>
-      Unauthorized(msg.id)
-
     case msg: TopKekMessage with RequireAuthorization if currentNick.isEmpty =>
       Unauthorized(msg.id)
   }
@@ -143,7 +168,7 @@ class MessageBroadcaster(repository: UserRepository)(private[this] var address: 
       ServerHello(id)
   }
 
-  override def receive(message: Either[TopKekMessage, ProtocolErrorMessage]): TopKekMessage = {
+  override def receive(message: Either[TopKekMessage, ProtocolErrorMessage]): Response = {
     message match {
       case Left(msg) =>
         handshakeActions
@@ -159,7 +184,22 @@ class MessageBroadcaster(repository: UserRepository)(private[this] var address: 
 
   }
 
-  override def register(connection: InetSocketAddress, sender: Subscriber[TopKekMessage]): Unit =
-    repository += Anonymous(connection, Some(sender))
+
+  override def disconnect(connection: InetSocketAddress): Unit =
+    repository(connection).foreach(repository -= _)
+
+  private[this] sealed trait Operation
+
+  private[this] sealed case class SetNick(nick: String) extends Operation
+
+  private[this] sealed case class Authorize(nick: String, password: String, against: Option[User]) extends Operation
+
+  private[this] sealed case class Lock(password: String) extends Operation
+
+  private[this] object Unlock extends Operation
+
+  private[this] object Elevate extends Operation
+
+  private[this] object Drop extends Operation
 
 }
